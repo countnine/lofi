@@ -22,6 +22,17 @@ yarn run start         # electron ./pack/main.bundle.js (터미널 2)
 
 **테스트 스위트는 없습니다.**
 
+### 빌드 트러블슈팅 (node-gyp / Windows)
+
+네이티브 빌드(`yarn install` / `yarn run build`)는 PC별 환경에 의존하며, 이 설정들은 저장소가 아니라 **사용자 전역 설정**(`~/.npmrc`, `~/.yarnrc`)·시스템 설치에 있습니다. 푸시로 공유되지 않으니 PC마다 1회 점검하세요.
+
+- **`gyp ERR! find VS ... msvs_version does not match this version`** — npm 또는 yarn 설정의 `msvs_version`이 **실제로 설치되지 않은** Visual Studio 버전을 가리킬 때 발생합니다. node-gyp는 설치된 VS를 찾아도 이 값과 불일치하면 거부합니다.
+  - 확인: `npm config get msvs_version` **및** `yarn config get msvs_version` (둘 다 따로 봐야 함 — yarn은 `~/.yarnrc`를 별도로 읽습니다).
+  - 해결: 설치된 VS와 값을 일치시키거나, **그냥 비워서 자동 탐지**하게 하는 게 가장 안전합니다 — `npm config delete msvs_version`, `yarn config delete msvs_version`. 둘 다 `undefined`가 되어야 정상.
+  - 일회성 오버라이드: `$env:npm_config_msvs_version="<설치된 연도>"` 후 빌드.
+- node-gyp 13.x는 **VS 2022(v143) 및 VS 2026(v145)** 을 지원합니다. VS는 "Desktop development with C++" 워크로드와 Python이 필요합니다.
+- webpack 빌드는 `build/Release/*.node`가 이미 존재해야 모듈을 resolve할 수 있으므로(native-ext-loader), **네이티브 빌드를 먼저** 수행해야 합니다(`yarn install` / `yarn run build`가 처리).
+
 ## 아키텍처
 
 ### 두 개의 프로세스, 그러나 경계가 유독 얇음
