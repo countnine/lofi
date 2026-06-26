@@ -40,7 +40,7 @@ export const LoginButton: FunctionComponent = () => {
   const authUrl = useMemo(() => getAuthUrl(spotifyClientId), [spotifyClientId]);
 
   return (
-    <Link className="login-btn" target="auth" href={authUrl} onClick={startAuthServer}>
+    <Link className="login-btn no-drag" target="auth" href={authUrl} onClick={startAuthServer}>
       <SpotifyLogo className="fab fa-spotify" />
       <span>Log in</span>
     </Link>

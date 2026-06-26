@@ -12,6 +12,7 @@ export interface Settings {
   isUsingHardwareAcceleration: boolean;
   accessToken: string;
   refreshToken: string;
+  rememberLogin: boolean;
   spotifyClientId: string;
   visualizationId: number;
   visualizationType: VisualizationType;
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   isUsingHardwareAcceleration: true,
   accessToken: '',
   refreshToken: '',
+  rememberLogin: true,
   spotifyClientId: '',
   visualizationId: 0,
   visualizationType: VisualizationType.None,

@@ -52,6 +52,10 @@ const VisibleUi = styled.div`
     }
   }
 
+  .welcome-controls {
+    opacity: 1;
+  }
+
   .top {
     top: 0;
   }
@@ -78,7 +82,7 @@ export const App: FunctionComponent = () => {
 
   const { state, dispatch } = useSettings();
   const { state: currentlyPlaying, dispatch: currentlyPlayingDispatch } = useCurrentlyPlaying();
-  const { accessToken, refreshToken, visualizationId, visualizationType } = state || DEFAULT_SETTINGS;
+  const { accessToken, refreshToken, rememberLogin, visualizationId, visualizationType } = state || DEFAULT_SETTINGS;
   const { cornerRadius } = useMemo(() => state, [state]);
 
   const updateTokens = useCallback(
@@ -130,16 +134,18 @@ export const App: FunctionComponent = () => {
   }, [shouldShowFullscreenViz, visualizationType]);
 
   const handleAuth = useCallback(async () => {
-    try {
-      if (refreshToken) {
+    if (rememberLogin !== false && refreshToken) {
+      try {
         await refreshAccessToken(refreshToken);
+      } catch (err) {
+        // refreshAccessToken already clears the saved login when the refresh
+        // token is truly invalid; an unexpected error here is treated as
+        // transient and must NOT wipe the stored login.
+        // eslint-disable-next-line no-console
+        console.error(err);
       }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      await updateTokens(null);
     }
-  }, [refreshToken, updateTokens]);
+  }, [rememberLogin, refreshToken]);
 
   useEffect(() => {
     ipcRenderer.on(IpcMessage.ShowAbout, () => setShouldShowAbout(true));
@@ -171,6 +177,11 @@ export const App: FunctionComponent = () => {
       const onMouseDown = (event: MouseEvent): void => {
         const { button, clientX, clientY, target } = event;
         const targetElement = target as unknown as Element;
+
+        const isInteractive = targetElement.closest('input, textarea, button, a, select, label, .no-drag');
+        if (isInteractive) {
+          return;
+        }
 
         const isDraggable = targetElement.classList?.contains('draggable');
         if (button !== LEFT_MOUSE_BUTTON || !isDraggable) {

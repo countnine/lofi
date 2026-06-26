@@ -68,14 +68,12 @@ export const getAuthUrl = (clientId?: string): string => {
 };
 
 const scopesMatch = (scope: string): boolean => {
-  const tokenScopes = scope.split(' ').sort();
-  const requiredScopes = AUTH_SCOPES.sort();
-
-  const isScopesMatch =
-    tokenScopes.length === requiredScopes.length &&
-    tokenScopes.every((element, index) => element === requiredScopes[index]);
-
-  return isScopesMatch;
+  // The token is valid as long as it grants every scope we require. Spotify may
+  // return them in any order or include extras, so check for a subset instead of
+  // an exact match — and don't sort AUTH_SCOPES in place (that mutation leaks
+  // into getAuthUrl). Guard against a missing scope string too.
+  const tokenScopes = new Set((scope ?? '').split(' ').filter(Boolean));
+  return AUTH_SCOPES.every((requiredScope) => tokenScopes.has(requiredScope));
 };
 
 const setRefreshTokenInterval = (data: AuthData): void => {
@@ -100,26 +98,49 @@ export const refreshAccessToken = async (refreshToken: string): Promise<void> =>
 
   const body = `client_id=${getSpotifyClientId()}&grant_type=refresh_token&refresh_token=${refreshToken}`;
 
-  const res = await fetch(AUTH_TOKEN_URL, {
-    method: 'POST',
-    headers: new Headers({
-      'Content-Type': 'application/x-www-form-urlencoded',
-    }),
-    body,
-  });
+  let res: Response;
+  try {
+    res = await fetch(AUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: new Headers({
+        'Content-Type': 'application/x-www-form-urlencoded',
+      }),
+      body,
+    });
+  } catch (networkError) {
+    // Transient network failure (offline, DNS, etc.): keep the saved login so the
+    // next attempt (next 401 or next launch) can succeed instead of forcing a
+    // re-login.
+    console.error('Network error while refreshing access token, keeping saved login.', networkError);
+    return;
+  }
 
   let data = await res.json();
 
   if (res.status !== 200) {
     const errorText = data.error_description;
-    console.error(`status ${res.status}: Failed to retrieve access token\n  ${data.error}: ${errorText}`);
+    console.error(`status ${res.status}: Failed to refresh access token\n  ${data.error}: ${errorText}`);
+
+    // Only clear the saved login when Spotify rejects the refresh token itself.
+    // Server (5xx) and rate-limit (429) errors are transient — preserve it.
+    const isRefreshTokenInvalid = data.error === 'invalid_grant' || res.status === 400 || res.status === 401;
+    if (!isRefreshTokenInvalid) {
+      return;
+    }
     data = null;
   } else if (!scopesMatch(data.scope)) {
     console.warn(
-      `Authorization scopes mismatch\n    Expected: ${AUTH_SCOPES.join(' ')}\n    Token has: '${data.scope}`
+      `Authorization scopes mismatch\n    Expected: ${AUTH_SCOPES.join(' ')}\n    Token has: '${data.scope}'`
     );
     data = null;
   } else {
+    // Spotify often omits 'refresh_token' on a refresh response. Carry over the
+    // existing one so the session persists (otherwise the renderer treats the
+    // missing token as a logout and clears the saved login, breaking
+    // 'rememberLogin' across restarts).
+    if (!data.refresh_token) {
+      data.refresh_token = refreshToken;
+    }
     console.log('Access token refreshed.');
   }
 

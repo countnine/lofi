@@ -27,7 +27,8 @@ export const SettingsProvider: FunctionComponent = ({ children }) => {
   const [state, dispatch] = useReducer(useSettingsReducer, { ...DEFAULT_SETTINGS, ...store.get('settings') });
 
   useEffect(() => {
-    store.set('settings', state || DEFAULT_SETTINGS);
+    const settingsToStore = state?.rememberLogin === false ? { ...state, accessToken: '', refreshToken: '' } : state;
+    store.set('settings', settingsToStore || DEFAULT_SETTINGS);
   }, [state, store]);
 
   const ctx: SettingsContext = useMemo(() => ({ state, dispatch }), [state, dispatch]);

@@ -88,9 +88,9 @@ export const SettingsWindow: FunctionComponent<Props> = ({ initialValues, displa
   const handleReset = useCallback(() => {
     // eslint-disable-next-line no-restricted-globals, no-alert
     if (confirm('Are you sure you want to reset all settings?')) {
-      const { accessToken, refreshToken } = initialValues;
+      const { accessToken, refreshToken, rememberLogin } = initialValues;
       reset(DEFAULT_SETTINGS);
-      onSave({ ...DEFAULT_SETTINGS, accessToken, refreshToken });
+      onSave({ ...DEFAULT_SETTINGS, accessToken, refreshToken, rememberLogin });
       onClose();
     }
   }, [initialValues, onClose, onSave, reset]);

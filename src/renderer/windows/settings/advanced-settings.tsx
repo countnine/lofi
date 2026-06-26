@@ -43,6 +43,14 @@ export const AdvancedSettings: FunctionComponent = () => {
         <Row>
           <StyledCheckbox color={INPUT_COLOR} label="Enable dev tools" size="xs" {...register('isDebug')} />
         </Row>
+        <Row>
+          <StyledCheckbox
+            color={INPUT_COLOR}
+            label="Remember login on restart"
+            size="xs"
+            {...register('rememberLogin')}
+          />
+        </Row>
         <Row style={{ marginBottom: '1rem' }}>
           <Label>
             API Polling Interval (Seconds)
