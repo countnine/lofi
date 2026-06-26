@@ -142,6 +142,10 @@ export const settingsSchema = z.object({
   size: z.number().min(MIN_SIDE_LENGTH).max(MAX_SIDE_LENGTH),
   volumeIncrement: z.number().min(1).max(100).optional(),
   skipSongDelay: z.number().min(MIN_SKIP_SONG_DELAY).max(MAX_SKIP_SONG_DELAY).optional(),
+  spotifyClientId: z.string().optional(),
+  rememberLogin: z.boolean().optional(),
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional(),
 });
 
 export const getFullscreenVizBounds = (mainWindowBounds: Rectangle, screen: Screen, screenId: number): Rectangle => {

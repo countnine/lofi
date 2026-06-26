@@ -101,7 +101,7 @@ const MAIN_WINDOW_OPTIONS: BrowserWindowConstructorOptions = {
   transparent: true,
   hasShadow: false,
   skipTaskbar: !settings?.isVisibleInTaskbar,
-  focusable: !!settings?.isVisibleInTaskbar,
+  focusable: true,
   title: 'Lofi',
   webPreferences: {
     nodeIntegration: true,
@@ -177,6 +177,7 @@ const createMainWindow = (): void => {
     (_: Event, { x, y, size, isAlwaysOnTop, isDebug, isVisibleInTaskbar, visualizationScreenId }: Settings) => {
       setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop });
       mainWindow.setSkipTaskbar(!isVisibleInTaskbar);
+      mainWindow.setFocusable(true);
       showDevTool(mainWindow, isDebug);
 
       mainWindow.setBounds({ x, y, height: size, width: size });
@@ -196,6 +197,10 @@ const createMainWindow = (): void => {
   ipcMain.on(IpcMessage.CloseApp, () => {
     clearTimeout(mousePoller);
     app.quit();
+  });
+
+  ipcMain.on(IpcMessage.FocusMainWindow, () => {
+    mainWindow?.focus();
   });
 
   ipcMain.on(IpcMessage.OpenLink, (_: Event, url: ApplicationUrl) => {
@@ -337,8 +342,24 @@ const createMainWindow = (): void => {
 
 app.on('ready', () => {
   if (settings?.version === null || settings.version !== String(version)) {
+    const shouldPreserveLogin = settings?.rememberLogin !== false;
+    const preservedSettings = shouldPreserveLogin
+      ? {
+          accessToken: settings.accessToken,
+          refreshToken: settings.refreshToken,
+          spotifyClientId: settings.spotifyClientId,
+          rememberLogin: settings.rememberLogin ?? true,
+        }
+      : {};
+
     store.clear();
-    settings = store.get('settings') as Settings;
+    settings = {
+      ...DEFAULT_SETTINGS,
+      ...(store.get('settings') as Settings),
+      ...preservedSettings,
+      version: String(version),
+    };
+    store.set('settings', settings);
   }
 
   createMainWindow();

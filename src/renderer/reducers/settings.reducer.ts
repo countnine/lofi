@@ -42,7 +42,7 @@ export type SettingsAction =
     }
   | {
       type: SettingsActionType.UpdateSettings;
-      payload: Settings;
+      payload: Partial<Settings>;
     };
 
 export const useSettingsReducer = (state: Settings, action: SettingsAction): Settings => {

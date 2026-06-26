@@ -17,6 +17,10 @@ body {
   margin: 0;
 }
 
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
 .draggable-window {
   -webkit-user-select: none;
   user-select: none;

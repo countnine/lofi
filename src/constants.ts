@@ -46,6 +46,7 @@ export enum IpcMessage {
   WindowMoving = 'windowMoving',
   WindowReady = 'windowReady',
   WindowResized = 'windowResized',
+  FocusMainWindow = 'focusMainWindow',
 }
 
 export enum ApplicationUrl {

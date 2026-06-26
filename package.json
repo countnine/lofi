@@ -7,7 +7,7 @@
   "scripts": {
     "install": "yarn run build",
     "config-xcode": "node-gyp configure -- -f xcode",
-    "build": "node-gyp rebuild --target=4.0.1 --dist-url=https://electronjs.org/headers --openssl_fips=X && genversion --es6 --semi version.generated.ts",
+    "build": "node-gyp rebuild --target=24.8.5 --dist-url=https://electronjs.org/headers && genversion --es6 --semi version.generated.ts",
     "start": "electron ./pack/main.bundle.js",
     "dev": "yarn run development",
     "development": "rimraf pack && webpack --watch --config ./webpack.dev.js --progress --color",
@@ -71,7 +71,7 @@
     "husky": "^8.0.3",
     "native-ext-loader": "^2.3.0",
     "node-addon-api": "^7.1.0",
-    "node-gyp": "^10.0.1",
+    "node-gyp": "^13.0.0",
     "prettier": "^2.7.1",
     "rimraf": "^3.0.2",
     "style-loader": "^2.0.0",
