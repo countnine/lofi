@@ -44,6 +44,7 @@ import {
   settingsSchema,
   showDevTool,
 } from './main.utils';
+import { decryptToken, encryptToken } from './token-crypto';
 
 const DEFAULT_SIZE = 150;
 
@@ -339,6 +340,20 @@ const createMainWindow = (): void => {
 
   mainWindow.webContents.setWindowOpenHandler(windowOpenHandler);
 };
+
+// The renderer encrypts/decrypts tokens through these synchronous channels so
+// the settings persistence flow can stay synchronous. safeStorage is only ready
+// after 'ready', which is guaranteed since the renderer can't call before then.
+ipcMain.on(IpcMessage.EncryptString, (event: Electron.IpcMainEvent, plain: string) => {
+  // returnValue is how a synchronous IPC (sendSync) reply is sent.
+  // eslint-disable-next-line no-param-reassign
+  event.returnValue = encryptToken(plain);
+});
+
+ipcMain.on(IpcMessage.DecryptString, (event: Electron.IpcMainEvent, value: string) => {
+  // eslint-disable-next-line no-param-reassign
+  event.returnValue = decryptToken(value);
+});
 
 app.on('ready', () => {
   if (settings?.version === null || settings.version !== String(version)) {

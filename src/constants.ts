@@ -47,6 +47,8 @@ export enum IpcMessage {
   WindowReady = 'windowReady',
   WindowResized = 'windowResized',
   FocusMainWindow = 'focusMainWindow',
+  EncryptString = 'encryptString',
+  DecryptString = 'decryptString',
 }
 
 export enum ApplicationUrl {
