@@ -45,6 +45,7 @@ import {
   showDevTool,
 } from './main.utils';
 import { decryptToken, encryptToken } from './token-crypto';
+import { checkForUpdatesManually, checkForUpdatesOnStartup } from './updater';
 
 const DEFAULT_SIZE = 150;
 
@@ -403,6 +404,13 @@ app.on('ready', () => {
       },
     },
     {
+      label: 'Check for updates...',
+      type: 'normal',
+      click: () => {
+        checkForUpdatesManually();
+      },
+    },
+    {
       label: 'Exit',
       type: 'normal',
       click: () => {
@@ -412,6 +420,9 @@ app.on('ready', () => {
   ]);
   tray.setContextMenu(contextMenu);
   tray.setToolTip(`lofi v${version}`);
+
+  // Check for a newer published release in the background (packaged app only).
+  checkForUpdatesOnStartup();
 
   mainWindow.once('ready-to-show', () => {
     const displays = screen.getAllDisplays();
