@@ -176,11 +176,7 @@ export const Welcome: FunctionComponent = () => {
         onMouseDown={handleInteractiveMouseDown}>
         <LoginButton />
         <RememberLoginLabel onMouseDown={handleInteractiveMouseDown}>
-          <RememberLoginCheckbox
-            type="checkbox"
-            checked={rememberLogin}
-            onChange={handleRememberLoginChange}
-          />
+          <RememberLoginCheckbox type="checkbox" checked={rememberLogin} onChange={handleRememberLoginChange} />
           Remember login
         </RememberLoginLabel>
         <ClientIdInputWrapper onMouseDown={handleInteractiveMouseDown}>
@@ -196,7 +192,10 @@ export const Welcome: FunctionComponent = () => {
             onMouseDown={handleInteractiveMouseDown}
             autoFocus
           />
-          <HelpLink href="https://developer.spotify.com/dashboard" target="auth" onMouseDown={handleInteractiveMouseDown}>
+          <HelpLink
+            href="https://developer.spotify.com/dashboard"
+            target="auth"
+            onMouseDown={handleInteractiveMouseDown}>
             Get Client ID (Redirect URI: http://127.0.0.1:41419)
           </HelpLink>
         </ClientIdInputWrapper>
