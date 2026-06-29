@@ -11,6 +11,10 @@ export const ipcMain = {
   handle: (): void => undefined,
 };
 
+// Reversible fake so token-crypto round-trips can be asserted. `encryptString`
+// returns a Buffer (as the real API does); `decryptString` reverses it.
 export const safeStorage = {
-  isEncryptionAvailable: (): boolean => false,
+  isEncryptionAvailable: (): boolean => true,
+  encryptString: (plain: string): Buffer => Buffer.from(`cipher:${plain}`, 'utf-8'),
+  decryptString: (buffer: Buffer): string => buffer.toString('utf-8').replace(/^cipher:/, ''),
 };
