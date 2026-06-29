@@ -20,6 +20,7 @@ export interface Settings {
   visualizerOpacity: number;
   isAlwaysOnTop: boolean;
   isVisibleInTaskbar: boolean;
+  isCloseToTray: boolean;
   x: number;
   y: number;
   isOnLeft: boolean;
@@ -59,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
   visualizerOpacity: 100,
   isAlwaysOnTop: true,
   isVisibleInTaskbar: true,
+  isCloseToTray: false,
   isAlwaysShowTrackInfo: false,
   showTrackInfoTemporarilyInSeconds: 0,
   isAlwaysShowSongProgress: false,
