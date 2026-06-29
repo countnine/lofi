@@ -67,7 +67,7 @@ export const getAuthUrl = (clientId?: string): string => {
   return authUrl;
 };
 
-const scopesMatch = (scope: string): boolean => {
+export const scopesMatch = (scope: string): boolean => {
   // The token is valid as long as it grants every scope we require. Spotify may
   // return them in any order or include extras, so check for a subset instead of
   // an exact match — and don't sort AUTH_SCOPES in place (that mutation leaks
