@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { ipcRenderer } from 'electron';
-import { clamp } from 'lodash';
-import React, { FunctionComponent, useCallback, useEffect, useMemo, useState } from 'react';
+import { clamp, throttle } from 'lodash';
+import React, { FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import styled, { css } from 'styled-components';
 
 import { IpcMessage, WindowName } from '../../../constants';
@@ -19,6 +19,14 @@ import { Waiting } from './waiting';
 
 const ONE_SECOND_IN_MS = 1000;
 const ONE_MINUTE = ONE_SECOND_IN_MS * 60;
+
+// Lower bound on the polling interval, matching the settings slider / zod schema.
+const MIN_REFRESH_SECONDS = 1;
+// When nothing is playing there is no progress to track (keepAlive still covers
+// the premium re-seek), so poll this many times slower.
+const PAUSED_POLL_BACKOFF = 3;
+// Coalesce rapid scroll-wheel volume changes into at most one API call per window.
+const VOLUME_THROTTLE_MS = 200;
 
 const TRUNCATE_REGEX = /(.*?)\s[-(•].*/g;
 const truncateText = (text: string): string => text?.replace(TRUNCATE_REGEX, '$1');
@@ -189,49 +197,78 @@ export const Cover: FunctionComponent<Props> = ({ settings, message, onVisualiza
     refreshTrackLiked();
   }, [refreshTrackLiked]);
 
+  // The target volume a scroll burst is accumulating toward. Buffered in a ref so
+  // a fast scroll moves the full distance instead of repeatedly recomputing from
+  // the last-confirmed (and lagging) state.volume.
+  const pendingVolumeRef = useRef<number | null>(null);
+
+  // Once the confirmed volume catches up, drop the pending target so the next
+  // scroll starts from the real value.
+  useEffect(() => {
+    pendingVolumeRef.current = null;
+  }, [state.volume]);
+
+  const flushVolume = useMemo(
+    () =>
+      throttle(
+        () => {
+          if (pendingVolumeRef.current !== null) {
+            changeVolume(pendingVolumeRef.current);
+          }
+        },
+        VOLUME_THROTTLE_MS,
+        { leading: true, trailing: true }
+      ),
+    [changeVolume]
+  );
+
   const onMouseWheel = useCallback(
-    async ({ deltaY }: WheelEvent): Promise<void> => {
+    ({ deltaY }: WheelEvent): void => {
       const direction = Math.sign(deltaY);
-      const newVolume = clamp(state.volume - direction * volumeIncrement, 0, 100);
-      try {
-        // TODO use a state variable to buffer the volume change
-        if (newVolume !== state.volume) {
-          changeVolume(newVolume);
-        }
-      } catch (error) {
-        throw new Error(`Update volume error: ${error}`);
+      const currentVolume = pendingVolumeRef.current ?? state.volume;
+      const newVolume = clamp(currentVolume - direction * volumeIncrement, 0, 100);
+      if (newVolume !== currentVolume) {
+        pendingVolumeRef.current = newVolume;
+        flushVolume();
       }
     },
-    [changeVolume, state.volume, volumeIncrement]
+    [flushVolume, state.volume, volumeIncrement]
   );
 
   useEffect(() => {
-    document.getElementById('visible-ui').addEventListener('mousewheel', onMouseWheel);
+    const element = document.getElementById('visible-ui');
+    element?.addEventListener('mousewheel', onMouseWheel);
     return () => {
-      document.getElementById('visible-ui').removeEventListener('mousewheel', onMouseWheel);
+      element?.removeEventListener('mousewheel', onMouseWheel);
+      flushVolume.cancel();
     };
-  }, [onMouseWheel]);
+  }, [onMouseWheel, flushVolume]);
 
   useEffect(() => {
-    const listeningToIntervalId = setInterval(handlePlaybackChanged, trackInfoRefreshTimeInSeconds * ONE_SECOND_IN_MS);
-
-    return () => {
-      if (listeningToIntervalId) {
-        clearInterval(listeningToIntervalId);
+    // Skip polling while the window is hidden (e.g. minimized to tray) and back
+    // off when nothing is playing — both cut needless Spotify API calls (429s).
+    const baseMs = Math.max(trackInfoRefreshTimeInSeconds, MIN_REFRESH_SECONDS) * ONE_SECOND_IN_MS;
+    const intervalMs = state.isPlaying ? baseMs : baseMs * PAUSED_POLL_BACKOFF;
+    const listeningToIntervalId = setInterval(() => {
+      if (document.hidden) {
+        return;
       }
-    };
-  }, [handlePlaybackChanged, trackInfoRefreshTimeInSeconds]);
+      handlePlaybackChanged();
+    }, intervalMs);
+
+    return () => clearInterval(listeningToIntervalId);
+  }, [handlePlaybackChanged, trackInfoRefreshTimeInSeconds, state.isPlaying]);
 
   useEffect(() => {
-    const refreshTrackLikedIntervalId = setInterval(
-      refreshTrackLiked,
-      2 * trackInfoRefreshTimeInSeconds * ONE_SECOND_IN_MS
-    );
-    return () => {
-      if (refreshTrackLikedIntervalId) {
-        clearInterval(refreshTrackLikedIntervalId);
+    const intervalMs = 2 * Math.max(trackInfoRefreshTimeInSeconds, MIN_REFRESH_SECONDS) * ONE_SECOND_IN_MS;
+    const refreshTrackLikedIntervalId = setInterval(() => {
+      if (document.hidden) {
+        return;
       }
-    };
+      refreshTrackLiked();
+    }, intervalMs);
+
+    return () => clearInterval(refreshTrackLikedIntervalId);
   }, [refreshTrackLiked, trackInfoRefreshTimeInSeconds]);
 
   useEffect(() => {
