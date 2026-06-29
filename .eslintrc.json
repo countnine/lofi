@@ -82,6 +82,18 @@
     "import/newline-after-import": "error",
     "import/no-duplicates": "error"
   },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "test/**/*.ts"],
+      "env": {
+        "jest": true
+      },
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "class-methods-use-this": "off"
+      }
+    }
+  ],
   "settings": {
     "import/extensions": [".js", ".jsx", ".ts", ".tsx"],
     "import/core-modules": ["electron"]
