@@ -76,6 +76,9 @@ let mousePoller: NodeJS.Timeout;
 let initialBounds: Rectangle;
 
 let tray: Tray = null;
+// Set to true only for a real quit (tray "Exit") so the close-to-tray guard on
+// the window 'close' event lets the app actually exit.
+let isQuitting = false;
 Menu.setApplicationMenu(null);
 
 const isSingleInstance: boolean = app.requestSingleInstanceLock();
@@ -121,6 +124,16 @@ const createMainWindow = (): void => {
   mainWindow.loadURL(`file://${path.join(__dirname, './index.html')}`);
 
   showDevTool(mainWindow, !!settings?.isDebug);
+
+  mainWindow.on('close', (event) => {
+    // When "close to tray" is enabled, intercept an OS-level close (e.g. Alt+F4)
+    // and hide to the tray instead of quitting. A real quit (tray "Exit") sets
+    // isQuitting first so this guard lets it through.
+    if (settings.isCloseToTray && !isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
+  });
 
   ipcMain.on(IpcMessage.WindowMoving, (_: Event, { mouseX, mouseY }: MouseData) => {
     const { x, y } = screen.getCursorScreenPoint();
@@ -174,29 +187,34 @@ const createMainWindow = (): void => {
     mainWindow.webContents.send(IpcMessage.WindowResized, newSize);
   });
 
-  ipcMain.on(
-    IpcMessage.SettingsChanged,
-    (_: Event, { x, y, size, isAlwaysOnTop, isDebug, isVisibleInTaskbar, visualizationScreenId }: Settings) => {
-      setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop });
-      mainWindow.setSkipTaskbar(!isVisibleInTaskbar);
-      mainWindow.setFocusable(true);
-      showDevTool(mainWindow, isDebug);
+  ipcMain.on(IpcMessage.SettingsChanged, (_: Event, newSettings: Settings) => {
+    // Keep the main-process snapshot current so window-level behaviour that reads
+    // it (e.g. isCloseToTray) reflects the latest save without a restart.
+    settings = { ...settings, ...newSettings };
+    const { x, y, size, isAlwaysOnTop, isDebug, isVisibleInTaskbar, visualizationScreenId } = newSettings;
+    setAlwaysOnTop({ window: mainWindow, isAlwaysOnTop });
+    mainWindow.setSkipTaskbar(!isVisibleInTaskbar);
+    mainWindow.setFocusable(true);
+    showDevTool(mainWindow, isDebug);
 
-      mainWindow.setBounds({ x, y, height: size, width: size });
-      if (x === -1 && y === -1) {
-        mainWindow.center();
-      }
-      moveTrackInfo(mainWindow, screen);
-
-      const fullscreenVizWindow = findWindow(WindowTitle.FullscreenViz);
-      if (fullscreenVizWindow) {
-        const fullscreenVizBounds = getFullscreenVizBounds(mainWindow.getBounds(), screen, visualizationScreenId);
-        fullscreenVizWindow.setBounds(fullscreenVizBounds);
-      }
+    mainWindow.setBounds({ x, y, height: size, width: size });
+    if (x === -1 && y === -1) {
+      mainWindow.center();
     }
-  );
+    moveTrackInfo(mainWindow, screen);
+
+    const fullscreenVizWindow = findWindow(WindowTitle.FullscreenViz);
+    if (fullscreenVizWindow) {
+      const fullscreenVizBounds = getFullscreenVizBounds(mainWindow.getBounds(), screen, visualizationScreenId);
+      fullscreenVizWindow.setBounds(fullscreenVizBounds);
+    }
+  });
 
   ipcMain.on(IpcMessage.CloseApp, () => {
+    if (settings.isCloseToTray) {
+      mainWindow.hide();
+      return;
+    }
     clearTimeout(mousePoller);
     app.quit();
   });
@@ -390,6 +408,13 @@ app.on('ready', () => {
     },
     { type: 'separator' },
     {
+      label: 'Open',
+      type: 'normal',
+      click: () => {
+        mainWindow.show();
+      },
+    },
+    {
       label: 'Settings',
       type: 'normal',
       click: () => {
@@ -414,12 +439,14 @@ app.on('ready', () => {
       label: 'Exit',
       type: 'normal',
       click: () => {
+        isQuitting = true;
         app.quit();
       },
     },
   ]);
   tray.setContextMenu(contextMenu);
   tray.setToolTip(`lofi v${version}`);
+  tray.on('double-click', () => mainWindow.show());
 
   // Check for a newer published release in the background (packaged app only).
   checkForUpdatesOnStartup();

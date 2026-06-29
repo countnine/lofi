@@ -51,6 +51,14 @@ export const AdvancedSettings: FunctionComponent = () => {
             {...register('rememberLogin')}
           />
         </Row>
+        <Row>
+          <StyledCheckbox
+            color={INPUT_COLOR}
+            label="Close to tray (keep running in the background)"
+            size="xs"
+            {...register('isCloseToTray')}
+          />
+        </Row>
         <Row style={{ marginBottom: '1rem' }}>
           <Label>
             API Polling Interval (Seconds)

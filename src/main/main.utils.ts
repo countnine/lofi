@@ -143,6 +143,7 @@ export const settingsSchema = z.object({
   volumeIncrement: z.number().min(1).max(100).optional(),
   skipSongDelay: z.number().min(MIN_SKIP_SONG_DELAY).max(MAX_SKIP_SONG_DELAY).optional(),
   trackInfoRefreshTimeInSeconds: z.number().min(1).max(10).optional(),
+  isCloseToTray: z.boolean().optional(),
   spotifyClientId: z.string().optional(),
   rememberLogin: z.boolean().optional(),
   accessToken: z.string().optional(),
