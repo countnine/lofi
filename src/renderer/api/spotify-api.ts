@@ -1,5 +1,8 @@
+import { z } from 'zod';
+
 import { SPOTIFY_API_URL as API_URL } from '../../constants';
 import { AuthData, refreshAccessToken } from '../../main/auth';
+import { likedTracksSchema, spotifyAccountSchema, spotifyCurrentlyPlayingSchema } from './spotify-schemas';
 
 export enum AccountType {
   Free = 'free',
@@ -81,9 +84,13 @@ class SpotifyApi {
       return null;
     }
 
-    const userProfile = await this.fetch<SpotifyAccount>('/me', {
-      method: 'GET',
-    });
+    const userProfile = await this.fetch<SpotifyAccount>(
+      '/me',
+      {
+        method: 'GET',
+      },
+      spotifyAccountSchema
+    );
 
     return {
       ...userProfile,
@@ -94,9 +101,13 @@ class SpotifyApi {
   }
 
   async getCurrentlyPlaying(): Promise<SpotifyCurrentlyPlaying> {
-    return this.fetch<SpotifyCurrentlyPlaying>('/me/player?type=episode,track', {
-      method: 'GET',
-    });
+    return this.fetch<SpotifyCurrentlyPlaying>(
+      '/me/player?type=episode,track',
+      {
+        method: 'GET',
+      },
+      spotifyCurrentlyPlayingSchema
+    );
   }
 
   async play(pause: boolean): Promise<void> {
@@ -125,9 +136,13 @@ class SpotifyApi {
   }
 
   async isTrackLiked(trackId: string): Promise<boolean> {
-    const likedResponse: Array<boolean> = await this.fetch(`/me/tracks/contains?ids=${trackId}`, {
-      method: 'GET',
-    });
+    const likedResponse: Array<boolean> = await this.fetch(
+      `/me/tracks/contains?ids=${trackId}`,
+      {
+        method: 'GET',
+      },
+      likedTracksSchema
+    );
 
     if (!likedResponse || likedResponse.length === 0) {
       return false;
@@ -147,7 +162,7 @@ class SpotifyApi {
     });
   }
 
-  private async fetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  private async fetch<T>(input: RequestInfo, init?: RequestInit, schema?: z.ZodTypeAny): Promise<T> {
     if (!this.accessToken) {
       return null;
     }
@@ -171,7 +186,23 @@ class SpotifyApi {
     switch (res.status) {
       case 200: {
         const responseLength = parseInt(res.headers.get('content-length'), 10);
-        return responseLength > 0 ? res.json() : null;
+        if (!(responseLength > 0)) {
+          return null;
+        }
+        const json = await res.json();
+        if (!schema) {
+          return json as T;
+        }
+        const parsed = schema.safeParse(json);
+        if (parsed.success) {
+          return parsed.data as T;
+        }
+        // safeParse on a ZodTypeAny does not discriminate the union on `success`
+        // in this TS version, so reach the error branch through a narrow cast.
+        const { issues } = (parsed as { error: { issues: unknown } }).error;
+        // eslint-disable-next-line no-console
+        console.warn(`Unexpected Spotify response shape for ${input}:`, issues);
+        return null;
       }
       case 204: {
         return null;
